@@ -30,7 +30,7 @@ jobs:
           if (-not $installer) { throw 'Installer missing.' }
           $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash *$($installer.Name)" | Set-Content dist-installer/SHA256SUMS.txt
-      - name: Create draft release
+      - name: Create or update release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -39,7 +39,9 @@ jobs:
           $installer = Get-ChildItem dist-installer -Filter 'Font-Library-Setup-*.exe' | Select-Object -First 1
           if (-not $installer) { throw 'Installer missing.' }
           $notes = "docs/releases/$tag.md"
-          if (Test-Path $notes) {
+          if (gh release view $tag --json id 2>$null) {
+            gh release upload $tag $installer.FullName dist-installer/SHA256SUMS.txt --clobber
+          } elseif (Test-Path $notes) {
             gh release create $tag $installer.FullName dist-installer/SHA256SUMS.txt --title "Font Library $tag" --notes-file $notes --draft --verify-tag
           } else {
             gh release create $tag $installer.FullName dist-installer/SHA256SUMS.txt --title "Font Library $tag" --generate-notes --draft --verify-tag
