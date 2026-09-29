@@ -1,0 +1,46 @@
+name: Draft Windows release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Check tag version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          if ("v$version" -ne "${{ github.ref_name }}") { throw 'Tag and package version differ.' }
+      - run: npm run dist
+      - name: Write installer checksum
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist-installer -Filter 'Font-Library-Setup-*.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'Installer missing.' }
+          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash *$($installer.Name)" | Set-Content dist-installer/SHA256SUMS.txt
+      - name: Create draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $installer = Get-ChildItem dist-installer -Filter 'Font-Library-Setup-*.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'Installer missing.' }
+          $notes = "docs/releases/$tag.md"
+          if (Test-Path $notes) {
+            gh release create $tag $installer.FullName dist-installer/SHA256SUMS.txt --title "Font Library $tag" --notes-file $notes --draft --verify-tag
+          } else {
+            gh release create $tag $installer.FullName dist-installer/SHA256SUMS.txt --title "Font Library $tag" --generate-notes --draft --verify-tag
+          }
