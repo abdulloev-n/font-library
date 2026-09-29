@@ -3,6 +3,12 @@ name: Draft Windows release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag
+        required: true
+        default: v1.0.0
 
 permissions:
   contents: write
@@ -10,6 +16,8 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -21,7 +29,7 @@ jobs:
         shell: pwsh
         run: |
           $version = node -p "require('./package.json').version"
-          if ("v$version" -ne "${{ github.ref_name }}") { throw 'Tag and package version differ.' }
+          if ("v$version" -ne $env:RELEASE_TAG) { throw 'Tag and package version differ.' }
       - run: npm run dist
       - name: Write installer checksum
         shell: pwsh
@@ -30,19 +38,21 @@ jobs:
           if (-not $installer) { throw 'Installer missing.' }
           $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash *$($installer.Name)" | Set-Content dist-installer/SHA256SUMS.txt
-      - name: Create or update release
+      - name: Create or update draft release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = $env:RELEASE_TAG
           $installer = Get-ChildItem dist-installer -Filter 'Font-Library-Setup-*.exe' | Select-Object -First 1
           if (-not $installer) { throw 'Installer missing.' }
           $notes = "docs/releases/$tag.md"
-          if (gh release view $tag --json id 2>$null) {
+          gh release view $tag --json id 2>$null | Out-Null
+          if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $installer.FullName dist-installer/SHA256SUMS.txt --clobber
           } elseif (Test-Path $notes) {
-            gh release create $tag $installer.FullName dist-installer/SHA256SUMS.txt --title "Font Library $tag" --notes-file $notes --draft --verify-tag
+            gh release create $tag $installer.FullName dist-installer/SHA256SUMS.txt --title "Font Library $tag" --notes-file $notes --draft --target main
           } else {
-            gh release create $tag $installer.FullName dist-installer/SHA256SUMS.txt --title "Font Library $tag" --generate-notes --draft --verify-tag
+            gh release create $tag $installer.FullName dist-installer/SHA256SUMS.txt --title "Font Library $tag" --generate-notes --draft --target main
           }
+          if ($LASTEXITCODE -ne 0) { throw 'Release creation or upload failed.' }
