@@ -9,12 +9,11 @@
     "dev": "vite --host 127.0.0.1",
     "app": "electron .",
     "build": "tsc --noEmit && vite build",
-    "dist": "node scripts/make-icon.cjs && npm run build && electron-builder --win nsis"
+    "dist": "node scripts/make-icon.cjs && npm run build && electron-builder --win nsis --publish never"
   },
   "build": {
     "appId": "studio.fontlibrary.app",
     "productName": "Font Library",
-    "electronDist": "node_modules/electron/dist",
     "directories": { "output": "dist-installer" },
     "files": ["dist/**/*", "electron/**/*", "package.json", "node_modules/**/*"],
     "asar": true,
