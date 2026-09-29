@@ -1,0 +1,42 @@
+{
+  "name": "font-library",
+  "version": "1.0.0",
+  "description": "Explore, compare, and organize the fonts installed on your Windows PC",
+  "private": true,
+  "license": "MIT",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "app": "electron .",
+    "build": "tsc --noEmit && vite build",
+    "dist": "node scripts/make-icon.cjs && npm run build && electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "studio.fontlibrary.app",
+    "productName": "Font Library",
+    "electronDist": "node_modules/electron/dist",
+    "directories": { "output": "dist-installer" },
+    "files": ["dist/**/*", "electron/**/*", "package.json", "node_modules/**/*"],
+    "asar": true,
+    "win": { "target": ["nsis"], "icon": "build/icon.ico", "artifactName": "Font-Library-Setup-${version}.${ext}" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Font Library", "perMachine": false }
+  },
+  "keywords": ["fonts", "typography", "font-manager", "variable-fonts", "windows", "electron"],
+  "type": "module",
+  "dependencies": {
+    "fontkit": "^2.0.4",
+    "lucide-react": "^1.48.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1"
+  }
+}
